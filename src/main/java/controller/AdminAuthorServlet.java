@@ -2,6 +2,7 @@ package controller;
 
 import dao.AuthorDAO;
 import dao.BookDAO;
+import dao.UserDAO;
 import mode.Author;
 import mode.Book;
 import mode.User;
@@ -28,11 +29,13 @@ public class AdminAuthorServlet extends HttpServlet {
     private static final Logger LOGGER = Logger.getLogger(AdminAuthorServlet.class.getName());
     private AuthorDAO authorDAO;
     private BookDAO bookDAO;
+    private UserDAO userDAO;
     
     @Override
     public void init() {
         authorDAO = new AuthorDAO();
         bookDAO = new BookDAO();
+        userDAO = new UserDAO();
     }
     
     @Override
@@ -42,7 +45,7 @@ public class AdminAuthorServlet extends HttpServlet {
         User user = (User) session.getAttribute("user");
         
         // Check if user is logged in and is an admin
-        if (user == null || user.getRole() != User.Role.ADMIN) {
+        if (user == null || !user.getRole().equals("ADMIN")) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
             return;
         }
@@ -72,24 +75,79 @@ public class AdminAuthorServlet extends HttpServlet {
         User user = (User) session.getAttribute("user");
         
         // Check if user is logged in and is an admin
-        if (user == null || user.getRole() != User.Role.ADMIN) {
+        if (user == null || !user.getRole().equals("ADMIN")) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
             return;
         }
         
         String action = request.getParameter("action");
+        LOGGER.info("AdminAuthorServlet doPost action: " + action);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        StringBuilder jsonResponse = new StringBuilder("{");
         
         try {
             if ("toggleStatus".equals(action)) {
                 // Toggle author active status
-                toggleAuthorStatus(request, response);
+                int authorId = Integer.parseInt(request.getParameter("id"));
+                boolean isActive = Boolean.parseBoolean(request.getParameter("active"));
+                
+                boolean success = userDAO.toggleUserStatus(authorId, isActive);
+                
+                if (success) {
+                    jsonResponse.append("\"success\": true,");
+                    jsonResponse.append("\"status\": \"").append(isActive ? "Active" : "Inactive").append("\",");
+                    jsonResponse.append("\"message\": \"Author status updated successfully.\"");
+                } else {
+                    jsonResponse.append("\"success\": false,");
+                    jsonResponse.append("\"message\": \"Failed to update author status.\"");
+                }
+            } else if ("delete".equals(action)) {
+                // Delete author
+                int authorId = Integer.parseInt(request.getParameter("id"));
+                LOGGER.info("Attempting to delete author with ID: " + authorId);
+                
+                // Don't allow deleting the current admin
+                if (authorId == user.getUserId()) {
+                    jsonResponse.append("\"success\": false,");
+                    jsonResponse.append("\"message\": \"You cannot delete your own account.\"");
+                    jsonResponse.append("}");
+                    out.print(jsonResponse.toString());
+                    return;
+                }
+                
+                // First, check if author has books
+                List<Book> authorBooks = bookDAO.getBooksByAuthor(authorId);
+                if (authorBooks != null && !authorBooks.isEmpty()) {
+                    // Delete all author's books first
+                    for (Book book : authorBooks) {
+                        bookDAO.deleteBook(book.getBookId());
+                    }
+                }
+                
+                // Now delete the author (user)
+                boolean success = userDAO.deleteUser(authorId);
+                
+                if (success) {
+                    jsonResponse.append("\"success\": true,");
+                    jsonResponse.append("\"message\": \"Author and all associated books have been deleted successfully.\"");
+                } else {
+                    jsonResponse.append("\"success\": false,");
+                    jsonResponse.append("\"message\": \"Failed to delete author. The author may have other associated data.\"");
+                }
             } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                jsonResponse.append("\"success\": false,");
+                jsonResponse.append("\"message\": \"Invalid action: ").append(action).append("\"");
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error processing author action", e);
-            throw new ServletException("Error processing author action", e);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error processing author action: " + action, e);
+            jsonResponse.append("\"success\": false,");
+            jsonResponse.append("\"message\": \"Error: ").append(e.getMessage().replace("\"", "\\\"")).append("\"");
         }
+        
+        jsonResponse.append("}");
+        out.print(jsonResponse.toString());
     }
     
     /**
@@ -129,37 +187,6 @@ public class AdminAuthorServlet extends HttpServlet {
             request.setAttribute("author", author);
             request.setAttribute("authorBooks", authorBooks);
             request.getRequestDispatcher("/admin/author-details.jsp").forward(request, response);
-        } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-        }
-    }
-    
-    /**
-     * Toggle author active status
-     * 
-     * @param request The HTTP request
-     * @param response The HTTP response
-     * @throws ServletException If a servlet error occurs
-     * @throws IOException If an I/O error occurs
-     * @throws SQLException If a database error occurs
-     */
-    private void toggleAuthorStatus(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException, SQLException {
-        int authorId = Integer.parseInt(request.getParameter("id"));
-        Author author = authorDAO.getAuthorById(authorId);
-        
-        if (author != null) {
-            // Toggle active status
-            boolean newStatus = !author.isActive();
-            
-            // Update author status in database (using UserDAO since Author extends User)
-            authorDAO.updateAuthorStatus(authorId, newStatus);
-            
-            // Return success response for AJAX
-            response.setContentType("application/json");
-            PrintWriter out = response.getWriter();
-            out.print("{\"success\": true, \"status\": \"" + (newStatus ? "Active" : "Inactive") + "\"}");
-            out.flush();
         } else {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }

@@ -16,7 +16,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - E-Library Hub</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .dashboard-container {
@@ -480,6 +480,35 @@
             margin-bottom: 0;
         }
         
+        .profile-tabs {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .tab-button {
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
         @media (max-width: 992px) {
             .dashboard-container {
                 grid-template-columns: 1fr;
@@ -704,120 +733,100 @@
                 </div>
                 
                 <div class="profile-main">
-                    <div class="profile-section">
-                        <h3 class="profile-section-title">Personal Information</h3>
-                        <form action="../UserServlet" method="post" id="profileForm">
+                    <div class="profile-tabs">
+                        <button class="tab-button active" onclick="openTab(event, 'profile-info')">Profile Information</button>
+                        <button class="tab-button" onclick="openTab(event, 'change-password')">Change Password</button>
+                        <button class="tab-button" onclick="openTab(event, 'deactivate-account')">Deactivate Account</button>
+                    </div>
+                    
+                    <div id="profile-info" class="tab-content active">
+                        <form action="${pageContext.request.contextPath}/UserProfileServlet" method="post" id="profileForm">
                             <input type="hidden" name="action" value="updateProfile">
+                            <input type="hidden" name="userId" value="<%= user.getUserId() %>">
                             
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="firstName">First Name</label>
-                                    <input type="text" id="firstName" name="firstName" class="form-control" value="<%= user.getFirstName() %>" required>
+                                    <input type="text" id="firstName" name="firstName" value="<%= user.getFirstName() %>" required class="form-control">
                                 </div>
                                 
                                 <div class="form-group">
                                     <label for="lastName">Last Name</label>
-                                    <input type="text" id="lastName" name="lastName" class="form-control" value="<%= user.getLastName() %>" required>
+                                    <input type="text" id="lastName" name="lastName" value="<%= user.getLastName() %>" required class="form-control">
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label for="email">Email</label>
-                                <input type="email" id="email" name="email" class="form-control" value="<%= user.getEmail() %>" required>
+                                <input type="email" id="email" name="email" value="<%= user.getEmail() %>" required class="form-control">
                             </div>
                             
                             <div class="form-group">
-                                <label for="bio">About Me</label>
-                                <textarea id="bio" name="bio" class="form-control" rows="3"><%= user.getBio() != null ? user.getBio() : "" %></textarea>
-                                <small class="form-text text-muted">Tell other readers about yourself and your reading interests.</small>
+                                <label for="bio">Bio</label>
+                                <textarea id="bio" name="bio" class="form-control" rows="4"><%= user.getBio() != null ? user.getBio() : "" %></textarea>
                             </div>
                             
-                            <div class="form-actions">
-                                <button type="submit" class="btn-primary">Save Changes</button>
+                            <div class="form-group">
+                                <button type="submit" class="btn-primary">Update Profile</button>
                             </div>
                         </form>
                     </div>
                     
-                    <div class="profile-section">
-                        <h3 class="profile-section-title">Change Password</h3>
-                        <form action="../UserServlet" method="post" id="passwordForm">
-                            <input type="hidden" name="action" value="updatePassword">
+                    <div id="change-password" class="tab-content">
+                        <form action="${pageContext.request.contextPath}/UserProfileServlet" method="post" id="passwordForm">
+                            <input type="hidden" name="action" value="changePassword">
+                            <input type="hidden" name="userId" value="<%= user.getUserId() %>">
                             
                             <div class="form-group">
                                 <label for="currentPassword">Current Password</label>
-                                <input type="password" id="currentPassword" name="currentPassword" class="form-control" required>
+                                <input type="password" id="currentPassword" name="currentPassword" required class="form-control">
                             </div>
                             
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="newPassword">New Password</label>
-                                    <input type="password" id="newPassword" name="newPassword" class="form-control" required>
-                                    <div class="password-strength" id="passwordStrength"></div>
-                                    <div class="password-feedback" id="passwordFeedback"></div>
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label for="confirmPassword">Confirm New Password</label>
-                                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" required>
-                                </div>
+                            <div class="form-group">
+                                <label for="newPassword">New Password</label>
+                                <input type="password" id="newPassword" name="newPassword" required class="form-control" 
+                                       pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$">
+                                <small>Password must be at least 8 characters and include letters and numbers</small>
+                                <div id="passwordStrength" class="password-strength"></div>
+                                <div id="passwordFeedback" class="password-feedback"></div>
                             </div>
                             
-                            <div class="form-actions">
-                                <button type="submit" class="btn-primary">Change Password</button>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirm New Password</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword" required class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <button type="submit" class="btn-primary" onclick="return validatePasswords()">Change Password</button>
                             </div>
                         </form>
                     </div>
                     
-                    <div class="profile-section">
-                        <h3 class="profile-section-title">Account Settings</h3>
-                        <form action="../UserServlet" method="post" id="settingsForm">
-                            <input type="hidden" name="action" value="updateSettings">
-                            
-                            <div class="form-group">
-                                <label>Email Notifications</label>
-                                <div class="checkbox-group">
-                                    <div>
-                                        <input type="checkbox" id="notifyNewBooks" name="notifyNewBooks">
-                                        <label for="notifyNewBooks">Notify me about new book recommendations</label>
-                                    </div>
-                                    <div>
-                                        <input type="checkbox" id="notifyReviewResponses" name="notifyReviewResponses">
-                                        <label for="notifyReviewResponses">Notify me when authors respond to my reviews</label>
-                                    </div>
-                                    <div>
-                                        <input type="checkbox" id="notifyUpdates" name="notifyUpdates">
-                                        <label for="notifyUpdates">Receive system updates and newsletters</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Privacy Settings</label>
-                                <div class="checkbox-group">
-                                    <div>
-                                        <input type="checkbox" id="publicProfile" name="publicProfile">
-                                        <label for="publicProfile">Make my profile visible to other users</label>
-                                    </div>
-                                    <div>
-                                        <input type="checkbox" id="showReadingActivity" name="showReadingActivity">
-                                        <label for="showReadingActivity">Show my reading activity in public feeds</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-actions">
-                                <button type="submit" class="btn-primary">Save Settings</button>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <div class="profile-section">
-                        <h3 class="profile-section-title">Danger Zone</h3>
-                        <p>These actions are irreversible. Please proceed with caution.</p>
-                        
-                        <div style="margin-top: 20px;">
-                            <button class="btn-danger" id="deactivateAccountBtn">Deactivate Account</button>
+                    <div id="deactivate-account" class="tab-content">
+                        <div class="alert alert-danger">
+                            <p><strong>Warning:</strong> Deactivating your account will make your profile inaccessible. You can reactivate your account by contacting an administrator.</p>
                         </div>
+                        
+                        <form action="${pageContext.request.contextPath}/UserDeactivationServlet" method="post" id="deactivateForm">
+                            <input type="hidden" name="userId" value="<%= user.getUserId() %>">
+                            
+                            <div class="form-group">
+                                <label for="deactivatePassword">Enter Your Password</label>
+                                <input type="password" id="deactivatePassword" name="password" required class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="confirmDeactivate" name="confirmDeactivate" value="true" required>
+                                    <span class="checkmark"></span>
+                                    I understand that deactivating my account will hide my profile and I will need to contact an administrator to reactivate it.
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button type="submit" class="btn-danger" onclick="return confirmDeactivation()">Deactivate Account</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -832,8 +841,9 @@
                 <h2 class="modal-title">Change Profile Picture</h2>
             </div>
             <div class="modal-body">
-                <form action="../UserServlet" method="post" enctype="multipart/form-data" id="avatarForm">
+                <form action="${pageContext.request.contextPath}/UserProfileServlet" method="post" enctype="multipart/form-data" id="avatarForm">
                     <input type="hidden" name="action" value="updateAvatar">
+                    <input type="hidden" name="userId" value="<%= user.getUserId() %>">
                     
                     <div class="form-group">
                         <label for="avatarFile">Select Image</label>
@@ -844,39 +854,6 @@
                     <div class="form-actions">
                         <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
                         <button type="submit" class="btn-primary">Upload</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Deactivate Account Modal -->
-    <div id="deactivateAccountModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <div class="modal-header">
-                <h2 class="modal-title">Deactivate Account</h2>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to deactivate your account? This action cannot be undone.</p>
-                <p>Your reading history and preferences will be kept for 30 days in case you change your mind.</p>
-                
-                <form action="../UserServlet" method="post" id="deactivateForm">
-                    <input type="hidden" name="action" value="deactivateAccount">
-                    
-                    <div class="form-group">
-                        <label for="deactivatePassword">Enter your password to confirm</label>
-                        <input type="password" id="deactivatePassword" name="password" class="form-control" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="deactivateReason">Reason for leaving (optional)</label>
-                        <textarea id="deactivateReason" name="reason" class="form-control" rows="3"></textarea>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="button" class="btn-secondary close-modal-btn">Cancel</button>
-                        <button type="submit" class="btn-danger">Deactivate Account</button>
                     </div>
                 </form>
             </div>
@@ -923,10 +900,6 @@
         // Open modals
         document.getElementById('changeAvatarOverlay').addEventListener('click', function() {
             openModal('changeAvatarModal');
-        });
-        
-        document.getElementById('deactivateAccountBtn').addEventListener('click', function() {
-            openModal('deactivateAccountModal');
         });
         
         // Password strength checker
@@ -989,59 +962,61 @@
         }
         
         // Form validation
-        document.getElementById('profileForm').addEventListener('submit', function(event) {
-            const email = document.getElementById('email').value;
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            if (!emailRegex.test(email)) {
-                event.preventDefault();
-                alert('Please enter a valid email address.');
-            }
-        });
-        
-        document.getElementById('passwordForm').addEventListener('submit', function(event) {
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+        function validatePasswords() {
+            var newPassword = document.getElementById("newPassword").value;
+            var confirmPassword = document.getElementById("confirmPassword").value;
             
             if (newPassword !== confirmPassword) {
-                event.preventDefault();
-                alert('Passwords do not match.');
+                alert("New password and confirm password do not match");
+                return false;
             }
             
-            const strength = checkPasswordStrength(newPassword);
-            if (strength.level === 'weak') {
-                const proceed = confirm('Your password is weak. Are you sure you want to continue?');
-                if (!proceed) {
-                    event.preventDefault();
-                }
-            }
-        });
+            return true;
+        }
         
-        document.getElementById('avatarForm').addEventListener('submit', function(event) {
-            const avatarFile = document.getElementById('avatarFile').files[0];
+        function confirmDeactivation() {
+            var checkbox = document.getElementById("confirmDeactivate");
             
-            if (avatarFile) {
-                // Check file size (max 2MB)
-                if (avatarFile.size > 2 * 1024 * 1024) {
-                    event.preventDefault();
-                    alert('File size exceeds the maximum limit of 2MB.');
-                }
-                
-                // Check file type
-                const fileType = avatarFile.type;
-                if (!fileType.startsWith('image/')) {
-                    event.preventDefault();
-                    alert('Please select an image file.');
-                }
+            if (!checkbox.checked) {
+                alert("Please confirm that you understand the consequences of deactivating your account");
+                return false;
             }
-        });
+            
+            return confirm("Are you sure you want to deactivate your account? This action requires administrator approval to reverse.");
+        }
         
-        document.getElementById('deactivateForm').addEventListener('submit', function(event) {
-            const confirmed = confirm('Are you absolutely sure you want to deactivate your account? This action cannot be undone immediately.');
-            if (!confirmed) {
-                event.preventDefault();
+        // Tab functions
+        function openTab(evt, tabName) {
+            var i, tabContent, tabButtons;
+            
+            // Hide all tab content
+            tabContent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabContent.length; i++) {
+                tabContent[i].classList.remove("active");
             }
-        });
+            
+            // Remove "active" class from all tab buttons
+            tabButtons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+            
+            // Show the current tab and add "active" class to the button
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+        
+        // Check if there's an error or success message and show the appropriate tab
+        window.onload = function() {
+            var errorMessage = "<%= errorMessage != null ? errorMessage : "" %>";
+            var successMessage = "<%= successMessage != null ? successMessage : "" %>";
+            
+            if (errorMessage.includes("password") || successMessage.includes("password")) {
+                openTab({currentTarget: document.getElementsByClassName("tab-button")[1]}, "change-password");
+            } else if (errorMessage.includes("deactivate") || successMessage.includes("account")) {
+                openTab({currentTarget: document.getElementsByClassName("tab-button")[2]}, "deactivate-account");
+            }
+        };
     </script>
 </body>
 </html>

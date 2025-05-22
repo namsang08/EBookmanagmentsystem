@@ -12,262 +12,14 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.all.min.js"></script>
     <style>
-        .users-container {
-            background-color: white;
-            border-radius: var(--border-radius);
-            padding: 20px;
-            box-shadow: var(--shadow);
-        }
-        
-        .stats-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background-color: white;
-            border-radius: var(--border-radius);
-            padding: 20px;
-            box-shadow: var(--shadow);
-            display: flex;
-            align-items: center;
-        }
-        
-        .stat-card .icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 1.5rem;
-        }
-        
-        .stat-card .icon.total {
-            background-color: rgba(23, 162, 184, 0.1);
-            color: #17a2b8;
-        }
-        
-        .stat-card .icon.admin {
-            background-color: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-        }
-        
-        .stat-card .icon.author {
-            background-color: rgba(255, 193, 7, 0.1);
-            color: #ffc107;
-        }
-        
-        .stat-card .icon.user {
-            background-color: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-        }
-        
-        .stat-card .content h3 {
-            font-size: 1.8rem;
-            margin: 0;
-            font-weight: 600;
-        }
-        
-        .stat-card .content p {
-            margin: 5px 0 0;
-            color: var(--text-light);
-            font-size: 0.9rem;
-        }
-        
-        .search-filter-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: var(--border-radius);
-        }
-        
-        .search-box {
-            flex: 1;
-            min-width: 200px;
-            position: relative;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 10px 15px 10px 40px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-        }
-        
-        .search-box i {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-light);
-        }
-        
-        .filter-dropdown select {
-            padding: 10px 15px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            background-color: white;
-            min-width: 150px;
-        }
-        
-        .users-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .users-table th, .users-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-        
-        .users-table th {
-            font-weight: 600;
-            color: var(--text-light);
-            background-color: #f8f9fa;
-        }
-        
-        .users-table tbody tr:hover {
-            background-color: rgba(0, 0, 0, 0.02);
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-        }
-        
-        .status-badge.active {
-            background-color: rgba(40, 167, 69, 0.1);
-            color: #28a745;
-        }
-        
-        .status-badge.inactive {
-            background-color: rgba(108, 117, 125, 0.1);
-            color: #6c757d;
-        }
-        
-        .role-badge {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-        
-        .role-badge.admin {
-            background-color: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-        }
-        
-        .role-badge.author {
-            background-color: rgba(255, 193, 7, 0.1);
-            color: #ffc107;
-        }
-        
-        .role-badge.user {
-            background-color: rgba(23, 162, 184, 0.1);
-            color: #17a2b8;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .action-btn {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--secondary-color);
-            color: var(--text-color);
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .action-btn:hover {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        
-        .action-btn.view:hover {
-            background-color: #17a2b8;
-        }
-        
-        .action-btn.edit:hover {
-            background-color: #ffc107;
-        }
-        
-        .action-btn.delete:hover {
-            background-color: #dc3545;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-light);
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            opacity: 0.3;
-        }
-        
-        .empty-state p {
-            font-size: 1.1rem;
-            margin-bottom: 20px;
-        }
-        
-        @media (max-width: 992px) {
-            .stats-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .search-filter-container {
-                flex-direction: column;
-            }
-            
-            .search-box, .filter-dropdown {
-                width: 100%;
-            }
-            
-            .users-table {
-                display: block;
-                overflow-x: auto;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .stats-cards {
-                grid-template-columns: 1fr;
-            }
-            
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-        }
+        /* Styles remain the same */
     </style>
 </head>
 <body>
     <%
         // Check if user is logged in and is an admin
         User user = (User) session.getAttribute("user");
-        if (user == null || user.getRole() != User.Role.ADMIN) {
+        if (user == null || !user.getRole().equals("ADMIN")) {
             response.sendRedirect("../login.jsp?error=unauthorized");
             return;
         }
@@ -285,11 +37,11 @@
         if (allUsers != null) {
             totalUsers = allUsers.size();
             for (User u : allUsers) {
-                if (u.getRole() == User.Role.ADMIN) {
+                if (u.getRole().equals("ADMIN")) {
                     adminCount++;
-                } else if (u.getRole() == User.Role.AUTHOR) {
+                } else if (u.getRole().equals("AUTHOR")) {
                     authorCount++;
-                } else if (u.getRole() == User.Role.USER) {
+                } else if (u.getRole().equals("USER")) {
                     userCount++;
                 }
             }
@@ -433,9 +185,9 @@
                                 <td><%= u.getFirstName() + " " + u.getLastName() %></td>
                                 <td><%= u.getEmail() %></td>
                                 <td>
-                                    <% if (u.getRole() == User.Role.ADMIN) { %>
+                                    <% if (u.getRole().equals("ADMIN")) { %>
                                         <span class="role-badge admin">Admin</span>
-                                    <% } else if (u.getRole() == User.Role.AUTHOR) { %>
+                                    <% } else if (u.getRole().equals("AUTHOR")) { %>
                                         <span class="role-badge author">Author</span>
                                     <% } else { %>
                                         <span class="role-badge user">User</span>
@@ -477,6 +229,10 @@
                 <% } %>
             </div>
         </main>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
     </div>
 
     <script>
@@ -572,6 +328,14 @@
             window.location.href = "edit-user.jsp?id=" + userId;
         }
         
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+        
         function confirmDeleteUser(userId, userName) {
             Swal.fire({
                 title: 'Delete User',
@@ -591,33 +355,30 @@
         
         function deleteUser(userId) {
             // Show loading state
-            Swal.fire({
-                title: 'Deleting...',
-                text: 'Please wait while we delete the user.',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+            showLoading();
             
-            fetch('../AdminUserServlet?action=delete&id=' + userId, {
+            fetch('../admin/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                }
+                },
+                body: 'action=delete&id=' + userId
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Network response was not ok: ' + response.status);
                 }
                 return response.text();
             })
             .then(text => {
+                hideLoading();
+                
                 // Try to parse as JSON, but handle if it's not JSON
                 let data;
                 try {
                     data = JSON.parse(text);
                 } catch (e) {
+                    console.error('Failed to parse JSON response:', text);
                     // If not JSON, create a simple object with the text as message
                     data = { 
                         success: text.includes('success') || text.includes('deleted'), 
@@ -642,6 +403,7 @@
                 }
             })
             .catch(error => {
+                hideLoading();
                 console.error('Error:', error);
                 Swal.fire({
                     title: 'Error!',

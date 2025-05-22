@@ -6,7 +6,9 @@ import util.SecurityUtil;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -286,6 +288,221 @@ public class UserDAO {
         }
     }
     
+    // Get user activity (for admin user-details.jsp)
+    public List<Map<String, Object>> getUserActivity(int userId, int limit) {
+        String sql = "SELECT 'book_view' as activity_type, b.title as item_name, uh.view_date as activity_date " +
+                     "FROM user_history uh JOIN books b ON uh.book_id = b.book_id " +
+                     "WHERE uh.user_id = ? " +
+                     "UNION ALL " +
+                     "SELECT 'book_download' as activity_type, b.title as item_name, d.download_date as activity_date " +
+                     "FROM downloads d JOIN books b ON d.book_id = b.book_id " +
+                     "WHERE d.user_id = ? " +
+                     "UNION ALL " +
+                     "SELECT 'review' as activity_type, b.title as item_name, r.review_date as activity_date " +
+                     "FROM reviews r JOIN books b ON r.book_id = b.book_id " +
+                     "WHERE r.user_id = ? " +
+                     "ORDER BY activity_date DESC " +
+                     "LIMIT ?";
+        
+        List<Map<String, Object>> activities = new ArrayList<>();
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            stmt.setInt(2, userId);
+            stmt.setInt(3, userId);
+            stmt.setInt(4, limit);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> activity = new HashMap<>();
+                    activity.put("type", rs.getString("activity_type"));
+                    activity.put("itemName", rs.getString("item_name"));
+                    activity.put("date", rs.getTimestamp("activity_date"));
+                    activities.add(activity);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting user activity", e);
+        }
+        
+        return activities;
+    }
+    
+    // Get user downloads count
+    public int getUserDownloadsCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM downloads WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting user downloads count", e);
+        }
+        
+        return 0;
+    }
+    
+    // Get user reviews count
+    public int getUserReviewsCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM reviews WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting user reviews count", e);
+        }
+        
+        return 0;
+    }
+    
+    // Get user bookmarks count
+    public int getUserBookmarksCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM user_books WHERE user_id = ? AND is_bookmarked = true";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting user bookmarks count", e);
+        }
+        
+        return 0;
+    }
+    
+    // Get author average rating
+    public double getAuthorAverageRating(int userId) {
+        String sql = "SELECT AVG(r.rating) FROM reviews r " +
+                     "JOIN books b ON r.book_id = b.book_id " +
+                     "WHERE b.author_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble(1);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting author average rating", e);
+        }
+        
+        return 0.0;
+    }
+    
+    // Get user's recent reviews
+    public List<Map<String, Object>> getUserReviews(int userId, int limit) {
+        String sql = "SELECT r.review_id, r.book_id, b.title as book_title, r.rating, r.review_text, r.review_date " +
+                     "FROM reviews r JOIN books b ON r.book_id = b.book_id " +
+                     "WHERE r.user_id = ? " +
+                     "ORDER BY r.review_date DESC " +
+                     "LIMIT ?";
+        
+        List<Map<String, Object>> reviews = new ArrayList<>();
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            stmt.setInt(2, limit);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> review = new HashMap<>();
+                    review.put("reviewId", rs.getInt("review_id"));
+                    review.put("bookId", rs.getInt("book_id"));
+                    review.put("bookTitle", rs.getString("book_title"));
+                    review.put("rating", rs.getInt("rating"));
+                    review.put("reviewText", rs.getString("review_text"));
+                    review.put("reviewDate", rs.getTimestamp("review_date"));
+                    reviews.add(review);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error getting user reviews", e);
+        }
+        
+        return reviews;
+    }
+    
+    // Toggle user active status
+    public boolean toggleUserStatus(int userId, boolean isActive) {
+        String sql = "UPDATE users SET is_active = ? WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setBoolean(1, isActive);
+            stmt.setInt(2, userId);
+            
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error toggling user status", e);
+            return false;
+        }
+    }
+    
+    // Get user statistics
+    public Map<String, Object> getUserStatistics(int userId) {
+        Map<String, Object> stats = new HashMap<>();
+        
+        stats.put("downloadsCount", getUserDownloadsCount(userId));
+        stats.put("reviewsCount", getUserReviewsCount(userId));
+        stats.put("bookmarksCount", getUserBookmarksCount(userId));
+        
+        // Check if user is an author
+        User user = findById(userId);
+        if (user != null && user.getRole() == User.Role.AUTHOR) {
+            stats.put("averageRating", getAuthorAverageRating(userId));
+            
+            // Get books published count
+            String sql = "SELECT COUNT(*) FROM books WHERE author_id = ?";
+            try (Connection conn = DBUtil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                
+                stmt.setInt(1, userId);
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        stats.put("booksPublished", rs.getInt(1));
+                    }
+                }
+            } catch (SQLException e) {
+                LOGGER.log(Level.SEVERE, "Error getting books published count", e);
+                stats.put("booksPublished", 0);
+            }
+        }
+        
+        return stats;
+    }
+    
     // Helper method to map ResultSet to User object
     private User mapResultSetToUser(ResultSet rs) throws SQLException {
         User user = new User();
@@ -303,5 +520,65 @@ public class UserDAO {
         user.setResetToken(rs.getString("reset_token"));
         user.setResetTokenExpiry(rs.getTimestamp("reset_token_expiry"));
         return user;
+    }
+    
+    // Verify if the provided password matches the user's password
+    public boolean verifyPassword(int userId, String password) {
+        String sql = "SELECT password FROM users WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String storedPassword = rs.getString("password");
+                    return SecurityUtil.verifyPassword(password, storedPassword);
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error verifying password", e);
+        }
+        
+        return false;
+    }
+    
+    // Update user profile information
+    public boolean updateUserProfile(User user) {
+        String sql = "UPDATE users SET first_name = ?, last_name = ?, email = ?, bio = ? WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, user.getFirstName());
+            stmt.setString(2, user.getLastName());
+            stmt.setString(3, user.getEmail());
+            stmt.setString(4, user.getBio());
+            stmt.setInt(5, user.getUserId());
+            
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error updating user profile", e);
+            return false;
+        }
+    }
+    
+    // Deactivate a user account
+    public boolean deactivateUser(int userId) {
+        String sql = "UPDATE users SET is_active = false WHERE user_id = ?";
+        
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, userId);
+            
+            int affectedRows = stmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error deactivating user", e);
+            return false;
+        }
     }
 }

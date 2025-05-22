@@ -1,6 +1,5 @@
 package controller;
 
-
 import dao.UserDAO;
 import mode.User;
 
@@ -38,7 +37,7 @@ public class AdminUserServlet extends HttpServlet {
         User user = (User) session.getAttribute("user");
         
         // Check if user is logged in and is an admin
-        if (user == null || user.getRole() != User.Role.ADMIN) {
+        if (user == null || !user.getRole().equals("ADMIN")) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
             return;
         }
@@ -74,12 +73,16 @@ public class AdminUserServlet extends HttpServlet {
         User user = (User) session.getAttribute("user");
         
         // Check if user is logged in and is an admin
-        if (user == null || user.getRole() != User.Role.ADMIN) {
+        if (user == null || !user.getRole().equals("ADMIN")) {
             response.sendRedirect(request.getContextPath() + "/login.jsp");
             return;
         }
         
         String action = request.getParameter("action");
+        LOGGER.info("AdminUserServlet doPost action: " + action);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
         
         try {
             if ("add".equals(action)) {
@@ -90,16 +93,47 @@ public class AdminUserServlet extends HttpServlet {
                 updateUser(request, response);
             } else if ("delete".equals(action)) {
                 // Delete user
-                deleteUser(request, response);
+                int userId = Integer.parseInt(request.getParameter("id"));
+                LOGGER.info("Attempting to delete user with ID: " + userId);
+                
+                // Don't allow deleting the current admin
+                if (userId == user.getUserId()) {
+                    out.print("{\"success\": false, \"message\": \"You cannot delete your own account.\"}");
+                    return;
+                }
+                
+                boolean success = userDAO.deleteUser(userId);
+                
+                if (success) {
+                    out.print("{\"success\": true, \"message\": \"User has been deleted successfully.\"}");
+                } else {
+                    out.print("{\"success\": false, \"message\": \"Failed to delete user. The user may have associated data.\"}");
+                }
             } else if ("toggleStatus".equals(action)) {
                 // Toggle user active status
-                toggleUserStatus(request, response);
+                int userId = Integer.parseInt(request.getParameter("id"));
+                boolean isActive = Boolean.parseBoolean(request.getParameter("active"));
+                
+                boolean success = userDAO.toggleUserStatus(userId, isActive);
+                
+                if (success) {
+                    out.print("{\"success\": true, \"status\": \"" + (isActive ? "Active" : "Inactive") + 
+                              "\", \"message\": \"User status updated successfully.\"}");
+                } else {
+                    out.print("{\"success\": false, \"message\": \"Failed to update user status.\"}");
+                }
             } else {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                out.print("{\"success\": false, \"message\": \"Invalid action: " + action + "\"}");
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error processing user action", e);
-            throw new ServletException("Error processing user action", e);
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error processing user action: " + action, e);
+            String errorMessage = e.getMessage();
+            if (errorMessage != null) {
+                errorMessage = errorMessage.replace("\"", "\\\"");
+            } else {
+                errorMessage = "Unknown error";
+            }
+            out.print("{\"success\": false, \"message\": \"Error: " + errorMessage + "\"}");
         }
     }
     
@@ -193,21 +227,35 @@ public class AdminUserServlet extends HttpServlet {
         String email = request.getParameter("email");
         String password = request.getParameter("password");
         String roleStr = request.getParameter("role");
-        User.Role role = User.Role.valueOf(roleStr);
         
         // Create and save user
-        User user = new User();
-        user.setFirstName(firstName);
-        user.setLastName(lastName);
-        user.setEmail(email);
-        user.setPassword(password); // In a real app, this should be hashed
-        user.setRole(role);
-        user.setActive(true);
+        User newUser = new User();
+        newUser.setFirstName(firstName);
+        newUser.setLastName(lastName);
+        newUser.setEmail(email);
+        newUser.setPassword(password); // In a real app, this should be hashed
         
-        userDAO.createUser(user);
+        // Convert String role to User.Role enum
+        try {
+            User.Role role = User.Role.valueOf(roleStr);
+            newUser.setRole(role);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warning("Invalid role: " + roleStr + ". Setting default role USER.");
+            newUser.setRole(User.Role.USER);
+        }
         
-        // Redirect to user list
-        response.sendRedirect(request.getContextPath() + "/admin/users");
+        newUser.setActive(true);
+        
+        boolean success = userDAO.createUser(newUser);
+        
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
+        if (success) {
+            out.print("{\"success\": true, \"message\": \"User created successfully.\", \"userId\": " + newUser.getUserId() + "}");
+        } else {
+            out.print("{\"success\": false, \"message\": \"Failed to create user.\"}");
+        }
     }
     
     /**
@@ -224,12 +272,28 @@ public class AdminUserServlet extends HttpServlet {
         int userId = Integer.parseInt(request.getParameter("userId"));
         User user = userDAO.findById(userId);
         
+        response.setContentType("application/json");
+        PrintWriter out = response.getWriter();
+        
         if (user != null) {
             // Update user data
             user.setFirstName(request.getParameter("firstName"));
             user.setLastName(request.getParameter("lastName"));
             user.setEmail(request.getParameter("email"));
-            user.setRole(User.Role.valueOf(request.getParameter("role")));
+            
+            // Update role if provided
+            String roleStr = request.getParameter("role");
+            if (roleStr != null && !roleStr.isEmpty()) {
+                try {
+                    User.Role role = User.Role.valueOf(roleStr);
+                    user.setRole(role);
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warning("Invalid role: " + roleStr + ". Role not updated.");
+                }
+            }
+            
+            // Update user in database
+            boolean success = userDAO.updateUser(user);
             
             // Update password if provided
             String password = request.getParameter("password");
@@ -237,68 +301,13 @@ public class AdminUserServlet extends HttpServlet {
                 userDAO.updatePassword(userId, password);
             }
             
-            // Update user in database
-            userDAO.updateUser(user);
-            
-            // Redirect to user details
-            response.sendRedirect(request.getContextPath() + "/admin/users/view?id=" + userId);
+            if (success) {
+                out.print("{\"success\": true, \"message\": \"User updated successfully.\"}");
+            } else {
+                out.print("{\"success\": false, \"message\": \"Failed to update user.\"}");
+            }
         } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-        }
-    }
-    
-    /**
-     * Delete user
-     * 
-     * @param request The HTTP request
-     * @param response The HTTP response
-     * @throws ServletException If a servlet error occurs
-     * @throws IOException If an I/O error occurs
-     * @throws SQLException If a database error occurs
-     */
-    private void deleteUser(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException, SQLException {
-        int userId = Integer.parseInt(request.getParameter("id"));
-        
-        // Delete user from database
-        userDAO.deleteUser(userId);
-        
-        // Return success response for AJAX
-        response.setContentType("application/json");
-        PrintWriter out = response.getWriter();
-        out.print("{\"success\": true}");
-        out.flush();
-    }
-    
-    /**
-     * Toggle user active status
-     * 
-     * @param request The HTTP request
-     * @param response The HTTP response
-     * @throws ServletException If a servlet error occurs
-     * @throws IOException If an I/O error occurs
-     * @throws SQLException If a database error occurs
-     */
-    private void toggleUserStatus(HttpServletRequest request, HttpServletResponse response) 
-            throws ServletException, IOException, SQLException {
-        int userId = Integer.parseInt(request.getParameter("id"));
-        User user = userDAO.findById(userId);
-        
-        if (user != null) {
-            // Toggle active status
-            boolean newStatus = !user.isActive();
-            user.setActive(newStatus);
-            
-            // Update user in database
-            userDAO.updateUser(user);
-            
-            // Return success response for AJAX
-            response.setContentType("application/json");
-            PrintWriter out = response.getWriter();
-            out.print("{\"success\": true, \"status\": \"" + (newStatus ? "Active" : "Inactive") + "\"}");
-            out.flush();
-        } else {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            out.print("{\"success\": false, \"message\": \"User not found.\"}");
         }
     }
 }

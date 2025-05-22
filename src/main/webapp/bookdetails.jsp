@@ -1077,7 +1077,7 @@
             
             const toastContent = `
                 <div class="toast-icon">
-                    <i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'}"></i>
+                    <i class="fas fa-${type == 'success' ? 'check' : 'exclamation-triangle'}"></i>
                 </div>
                 <div class="toast-content">
                     <div class="toast-title">${title}</div>
